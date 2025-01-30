@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.ListUpdateCallback
 import com.example.mangashelf.data.model.MangaWithYear
 import com.example.mangashelf.data.repository.MangaRepository
 import com.example.mangashelf.data.repository.MangaRepository.FetchResult
+import com.example.mangashelf.ui.MangaListUiState
+import com.example.mangashelf.ui.SortType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +38,7 @@ class MangaListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MangaListUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _currentSort = MutableStateFlow(SortType.NONE)
+    private val _currentSort = MutableStateFlow(SortType.YEAR_ASC)
     val currentSort = _currentSort.asStateFlow()
 
     private val _selectedYear = MutableStateFlow<Int?>(null)
@@ -113,7 +115,9 @@ class MangaListViewModel @Inject constructor(
     }
 
     fun onYearSelected(year: Int) {
-        _selectedYear.value = year
+        viewModelScope.launch {
+            _selectedYear.value = year
+        }
     }
 
     fun handleScroll(index: Int, pagingItems: LazyPagingItems<MangaWithYear>) {
@@ -182,18 +186,3 @@ class MangaListViewModel @Inject constructor(
     }
 
 }
-
-
-enum class SortType {
-    NONE,
-    SCORE_ASC,
-    SCORE_DESC,
-    POPULARITY_ASC,
-    POPULARITY_DESC
-}
-
-data class MangaListUiState(
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val isOffline: Boolean = false
-)

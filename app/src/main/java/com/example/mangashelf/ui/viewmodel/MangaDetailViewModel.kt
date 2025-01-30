@@ -2,8 +2,8 @@ package com.example.mangashelf.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.mangashelf.data.model.Manga
 import com.example.mangashelf.data.repository.MangaRepository
+import com.example.mangashelf.ui.MangaDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,8 +73,3 @@ class MangaDetailViewModel @Inject constructor(
     }
 }
 
-sealed class MangaDetailUiState {
-    data object Loading : MangaDetailUiState()
-    data class Success(val manga: Manga) : MangaDetailUiState()
-    data class Error(val message: String) : MangaDetailUiState()
-}
