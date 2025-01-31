@@ -38,3 +38,12 @@ data class MangaListUiState(
     val error: String? = null,
     val isOffline: Boolean = false
 )
+
+// Sealed class representing possible outcomes of manga fetch operations
+sealed class FetchResult {
+    data object Success : FetchResult()
+    data class Error(val message: String) : FetchResult()
+    data object NetworkError : FetchResult()
+    // Case when only cached database data is available
+    data object DatabaseOnly : FetchResult()
+}
