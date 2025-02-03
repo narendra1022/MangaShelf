@@ -2,182 +2,145 @@ package com.example.mangashelf.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.AsyncPagingDataDiffer
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
-import androidx.paging.compose.LazyPagingItems
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListUpdateCallback
+import com.example.mangashelf.data.model.Manga
 import com.example.mangashelf.data.model.MangaWithYear
+import com.example.mangashelf.data.repository.FetchResult
 import com.example.mangashelf.data.repository.MangaRepository
-import com.example.mangashelf.ui.FetchResult
-import com.example.mangashelf.ui.MangaListUiState
-import com.example.mangashelf.ui.SortType
+import com.example.mangashelf.ui.uistates.MangaListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class MangaListViewModel @Inject constructor(
-    private val repository: MangaRepository,
+    private val repository: MangaRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MangaListUiState())
     val uiState = _uiState.asStateFlow()
 
-    // Sort and filter state
     private val _currentSort = MutableStateFlow(SortType.YEAR_ASC)
     val currentSort = _currentSort.asStateFlow()
 
     private val _selectedYear = MutableStateFlow<Int?>(null)
     val selectedYear = _selectedYear.asStateFlow()
 
+    private val _mangas = MutableStateFlow<List<MangaWithYear>>(emptyList())
+    val mangas = _mangas.asStateFlow()
 
-    // Paging data with error handling
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val mangaPager = _currentSort
-        .flatMapLatest { sortType ->
-            repository.getMangasPager(sortType)
-                .catch { error ->
-                    handleError(error)
-                }
-        }
-        .cachedIn(viewModelScope)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = PagingData.empty()
-        )
+    private val _yearPositions = MutableStateFlow<Map<Int, Int>>(emptyMap()) // Map<Year, FirstIndex>
+    val yearPositions = _yearPositions.asStateFlow()
 
-    // DiffUtil callback for manga comparison
-    private val mangaDiffCallback = object : DiffUtil.ItemCallback<MangaWithYear>() {
-        override fun areItemsTheSame(oldItem: MangaWithYear, newItem: MangaWithYear): Boolean =
-            oldItem.manga.id == newItem.manga.id
-
-        override fun areContentsTheSame(oldItem: MangaWithYear, newItem: MangaWithYear): Boolean =
-            oldItem == newItem
-    }
-
-    // Efficient no-op callback for diff updates
-    private val noopListUpdateCallback = object : ListUpdateCallback {
-        override fun onInserted(position: Int, count: Int) {}
-        override fun onRemoved(position: Int, count: Int) {}
-        override fun onMoved(fromPosition: Int, toPosition: Int) {}
-        override fun onChanged(position: Int, count: Int, payload: Any?) {}
-    }
+    private val _isFavorite = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val isFavorite = _isFavorite.asStateFlow()
 
     init {
         initializeData()
+        observeFavorites()
     }
 
-    // Initialize data and start observations
     private fun initializeData() {
         viewModelScope.launch {
-            retry()
-            observeAvailableYears()
-        }
-    }
-
-    // Observe and collect available years from paging data
-    private fun observeAvailableYears() {
-        viewModelScope.launch(Dispatchers.Default) {
-            val differ = AsyncPagingDataDiffer(
-                diffCallback = mangaDiffCallback,
-                updateCallback = noopListUpdateCallback,
-                mainDispatcher = Dispatchers.Main.immediate,
-                workerDispatcher = Dispatchers.Default
-            )
-            mangaPager.collectLatest { pagingData ->
-                differ.submitData(pagingData)
-
-                val years = mutableSetOf<Int>()
-                for (i in 0 until differ.itemCount) {
-                    differ.peek(i)?.year?.let { years.add(it) }
-                }
+            _uiState.update { it.copy(isLoading = true) }
+            when (val result = repository.fetchMangas()) {
+                is FetchResult.Success -> loadMangas()
+                is FetchResult.DatabaseOnly -> loadMangas()
+                is FetchResult.Error -> handleError(result.message)
+                is FetchResult.NetworkError -> handleError("Network error. Please check your connection.")
             }
         }
     }
 
+    private fun loadMangas() {
+        viewModelScope.launch {
+            repository.getAllMangas()
+                .collect { mangaList ->
+                    val mangasWithYear = mangaList.map { manga ->
+                        MangaWithYear(
+                            manga = manga,
+                            year = SimpleDateFormat("yyyy", Locale.getDefault())
+                                .format(Date(manga.publishedChapterDate * 1000L))
+                                .toInt()
+                        )
+                    }
 
-    // Handle sorting changes
+                    // Group mangas by year and calculate the first index of each year
+                    val yearPositionsMap = mutableMapOf<Int, Int>()
+                    var currentIndex = 0
+                    mangasWithYear.groupBy { it.year }
+                        .toSortedMap()
+                        .forEach { (year, mangasInYear) ->
+                            yearPositionsMap[year] = currentIndex
+                            currentIndex += mangasInYear.size
+                        }
+                    _yearPositions.value = yearPositionsMap
+
+                    // Update mangas list based on sort
+                    val sortedMangas = when (currentSort.value) {
+                        SortType.YEAR_ASC -> mangasWithYear.sortedBy { it.year }
+                        SortType.SCORE_DESC -> mangasWithYear.sortedByDescending { it.manga.score }
+                        SortType.SCORE_ASC -> mangasWithYear.sortedBy { it.manga.score }
+                        SortType.POPULARITY_DESC -> mangasWithYear.sortedByDescending { it.manga.popularity }
+                        SortType.POPULARITY_ASC -> mangasWithYear.sortedBy { it.manga.popularity }
+                    }
+                    _mangas.value = sortedMangas
+
+                    // Set initial selected year if not set
+                    if (_selectedYear.value == null) {
+                        _selectedYear.value = sortedMangas.firstOrNull()?.year
+                    }
+
+                    _uiState.update { it.copy(isLoading = false, error = null) }
+                }
+        }
+    }
+
+    private fun observeFavorites() {
+        viewModelScope.launch {
+            repository.favoriteMangas.collect { favorites ->
+                _isFavorite.value = favorites.associateBy({ it.id }, { true })
+            }
+        }
+    }
+
+    fun toggleFavorite(manga: Manga) {
+        viewModelScope.launch {
+            repository.toggleFavorite(manga)
+        }
+    }
+
     fun sortBy(sortType: SortType) {
         viewModelScope.launch {
             _currentSort.value = sortType
-            if (sortType != SortType.NONE) {
-                _selectedYear.value = null
-            }
+            loadMangas()
         }
     }
 
-    // Update selected year
+
     fun onYearSelected(year: Int) {
         viewModelScope.launch {
             _selectedYear.value = year
         }
     }
-
-    // Handle scroll events and update selected year
-    fun handleScroll(index: Int, pagingItems: LazyPagingItems<MangaWithYear>) {
-        if (index in 0 until pagingItems.itemCount) {
-            pagingItems[index]?.let { mangaWithYear ->
-                onYearSelected(mangaWithYear.year)
-            }
-        }
-    }
-
-    // Retry failed operations
     fun retry() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            handleFetchResult(repository.fetchMangas())
-        }
+        initializeData()
     }
 
-    // Handle different fetch results
-    private fun handleFetchResult(result: FetchResult) {
-        val newState = when (result) {
-            is FetchResult.Success -> _uiState.value.copy(
-                isLoading = false,
-                error = null,
-                isOffline = false
-            )
-
-            is FetchResult.Error -> _uiState.value.copy(
-                error = result.message,
-                isLoading = false
-            )
-
-            is FetchResult.NetworkError -> _uiState.value.copy(
-                error = "Network error. Please check your connection.",
-                isLoading = false
-            )
-
-            is FetchResult.DatabaseOnly -> _uiState.value.copy(
-                isOffline = true,
-                isLoading = false
-            )
-        }
-        _uiState.value = newState
+    private fun handleError(message: String) {
+        _uiState.update { it.copy(error = message, isLoading = false) }
     }
+}
 
-    // Handle errors from paging
-    private fun handleError(error: Throwable) {
-        _uiState.update {
-            it.copy(
-                error = error.message ?: "Unknown error occurred",
-                isLoading = false
-            )
-        }
-    }
-
+enum class SortType {
+    SCORE_ASC,
+    SCORE_DESC,
+    POPULARITY_ASC,
+    POPULARITY_DESC,
+    YEAR_ASC
 }

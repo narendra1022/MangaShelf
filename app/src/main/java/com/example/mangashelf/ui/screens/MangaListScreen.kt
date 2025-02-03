@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,35 +17,27 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.mangashelf.R
-import com.example.mangashelf.ui.SortType
 import com.example.mangashelf.ui.components.EmptyScreen
 import com.example.mangashelf.ui.components.ErrorScreen
 import com.example.mangashelf.ui.components.LoadingScreen
 import com.example.mangashelf.ui.components.MangaList
 import com.example.mangashelf.ui.components.SortDropdownMenu
 import com.example.mangashelf.ui.components.YearTabRow
-import com.example.mangashelf.ui.findFirstIndexForYear
 import com.example.mangashelf.ui.viewmodel.MangaListViewModel
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
+import com.example.mangashelf.ui.viewmodel.SortType
 
-@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MangaListScreen(
     onMangaClick: (String) -> Unit,
@@ -54,28 +45,12 @@ fun MangaListScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val mangaPager = viewModel.mangaPager.collectAsLazyPagingItems()
+    val mangas by viewModel.mangas.collectAsState()
     val currentSort by viewModel.currentSort.collectAsState()
     val selectedYear by viewModel.selectedYear.collectAsState()
-    val yearListState = rememberLazyListState()
+    val yearPositions by viewModel.yearPositions.collectAsState()
+    val favorites by viewModel.isFavorite.collectAsState()
     var showSortMenu by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-
-    // scroll handling
-    LaunchedEffect(yearListState, currentSort) {
-        if (currentSort == SortType.NONE || currentSort == SortType.YEAR_ASC) {
-            snapshotFlow {
-                yearListState.firstVisibleItemIndex to yearListState.layoutInfo.visibleItemsInfo.firstOrNull()?.offset
-            }
-                .distinctUntilChanged()
-                .debounce(300L)
-                .collect { (index, _) ->
-                    if (mangaPager.itemCount > 0) {
-                        viewModel.handleScroll(index, mangaPager)
-                    }
-                }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -83,7 +58,6 @@ fun MangaListScreen(
                 TopAppBar(
                     title = { Text("MangaShelf", fontWeight = FontWeight.Bold) },
                     actions = {
-                        // menu
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(
                                 painter = painterResource(R.drawable.sort),
@@ -101,57 +75,47 @@ fun MangaListScreen(
                     }
                 )
 
-                // Year tabs
                 AnimatedVisibility(
-                    visible = (currentSort == SortType.NONE || currentSort == SortType.YEAR_ASC)
-                            && !uiState.isLoading,
+                    visible = currentSort == SortType.YEAR_ASC,
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically()
                 ) {
+                    val years = mangas.map { it.year }.distinct()
                     YearTabRow(
-                        mangaPager = mangaPager,
+                        years = years,
                         selectedYear = selectedYear,
-                        onYearSelected = { year ->
-                            viewModel.onYearSelected(year)
-                            coroutineScope.launch {
-                                val targetIndex = findFirstIndexForYear(mangaPager, year)
-                                targetIndex?.let { index ->
-                                    yearListState.animateScrollToItem(index)
-                                }
-                            }
-                        }
+                        onYearSelected = viewModel::onYearSelected
                     )
                 }
             }
         }
     ) { paddingValues ->
+
+
         Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading && mangaPager.itemCount == 0 -> {
-                    LoadingScreen()
-                }
-
-                uiState.error != null && mangaPager.itemCount == 0 -> {
+                uiState.isLoading && mangas.isEmpty() -> LoadingScreen()
+                uiState.error != null && mangas.isEmpty() -> {
                     ErrorScreen(
                         error = uiState.error!!,
                         onRetry = { viewModel.retry() }
                     )
                 }
-
-                mangaPager.itemCount == 0 -> {
-                    EmptyScreen()
-                }
-
+                mangas.isEmpty() -> EmptyScreen()
                 else -> {
                     MangaList(
-                        mangaPager = mangaPager,
+                        mangas = mangas,
                         currentSort = currentSort,
-                        yearListState = yearListState,
-                        onMangaClick = onMangaClick
+                        selectedYear = selectedYear,
+                        yearPositions = yearPositions,
+                        onYearChanged = viewModel::onYearSelected,
+                        favorites = favorites,
+                        onMangaClick = onMangaClick,
+                        onFavoriteClick = { viewModel.toggleFavorite(it) }
                     )
                 }
             }

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MangaDao {
 
-    @Query("SELECT * FROM mangas order by publishedChapterDate asc")
+    @Query("SELECT * FROM mangas ORDER BY publishedChapterDate ASC")
     fun getAllMangas(): Flow<List<Manga>>
 
     @Query("SELECT * FROM mangas WHERE id = :mangaId")
@@ -27,22 +27,6 @@ interface MangaDao {
     @Update
     suspend fun updateManga(manga: Manga)
 
-    @Query("SELECT * FROM mangas ORDER BY score ASC LIMIT :limit OFFSET :offset")
-    suspend fun getMangasByScoreAsc(limit: Int, offset: Int): List<Manga>
-
-    @Query("SELECT * FROM mangas ORDER BY score DESC LIMIT :limit OFFSET :offset")
-    suspend fun getMangasByScoreDesc(limit: Int, offset: Int): List<Manga>
-
-    @Query("SELECT * FROM mangas ORDER BY popularity ASC LIMIT :limit OFFSET :offset")
-    suspend fun getMangasByPopularityAsc(limit: Int, offset: Int): List<Manga>
-
-    @Query("SELECT * FROM mangas ORDER BY popularity DESC LIMIT :limit OFFSET :offset")
-    suspend fun getMangasByPopularityDesc(limit: Int, offset: Int): List<Manga>
-
-    @Query("SELECT * FROM mangas ORDER BY publishedChapterDate ASC LIMIT :limit OFFSET :offset")
-    suspend fun getMangasByYearAsc(limit: Int, offset: Int): List<Manga>
-
-    @Query("SELECT * FROM mangas order by publishedChapterDate asc")
+    @Query("SELECT * FROM mangas ORDER BY publishedChapterDate ASC")
     suspend fun getAllMangasOnce(): List<Manga>
-
 }

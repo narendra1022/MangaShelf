@@ -9,7 +9,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.example.mangashelf.ui.SortType
+import com.example.mangashelf.ui.viewmodel.SortType
 
 @Composable
 fun SortDropdownMenu(
@@ -24,7 +24,7 @@ fun SortDropdownMenu(
         SortMenuItem(
             text = "By Year",
             icon = Icons.Default.DateRange,
-            onClick = { onSortSelected(SortType.NONE) }
+            onClick = { onSortSelected(SortType.YEAR_ASC) }
         )
         Divider()
         SortMenuItem(

@@ -3,7 +3,7 @@ package com.example.mangashelf.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mangashelf.data.repository.MangaRepository
-import com.example.mangashelf.ui.MangaDetailUiState
+import com.example.mangashelf.ui.uistates.MangaDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,4 +72,5 @@ class MangaDetailViewModel @Inject constructor(
         mangaUpdateJob?.cancel()
     }
 }
+
 

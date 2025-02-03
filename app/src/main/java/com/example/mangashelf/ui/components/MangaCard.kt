@@ -1,12 +1,14 @@
 package com.example.mangashelf.ui.components
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,19 +18,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.DateRange
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,6 +53,8 @@ import java.util.Locale
 @Composable
 fun MangaCard(
     manga: Manga,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
     onClick: () -> Unit,
 ) {
     Card(
@@ -61,7 +69,6 @@ fun MangaCard(
         )
     ) {
         Box {
-            // Background gradient overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -80,7 +87,6 @@ fun MangaCard(
                     .fillMaxSize()
                     .padding(12.dp)
             ) {
-                // Image with shadow and border
                 Box(
                     modifier = Modifier
                         .width(100.dp)
@@ -105,32 +111,66 @@ fun MangaCard(
                         .padding(start = 16.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = manga.title,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Category chip
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = manga.category,
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                        IconButton(onClick = onFavoriteClick) {
+                            val transition = updateTransition(isFavorite, label = "favorite")
+                            val scale by transition.animateFloat(
+                                label = "scale",
+                                transitionSpec = {
+                                    if (false isTransitioningTo true) {
+                                        spring(dampingRatio = 0.3f)
+                                    } else {
+                                        spring(dampingRatio = 0.7f)
+                                    }
+                                }
+                            ) { if (it) 1.2f else 1f }
+
+                            Icon(
+                                imageVector = if (isFavorite) {
+                                    Icons.Filled.Favorite
+                                } else {
+                                    Icons.Outlined.FavoriteBorder
+                                },
+                                contentDescription = if (isFavorite) {
+                                    "Remove from favorites"
+                                } else {
+                                    "Add to favorites"
+                                },
+                                tint = if (isFavorite) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.scale(scale)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // Stats row
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = manga.category,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -142,7 +182,7 @@ fun MangaCard(
                             label = "Score"
                         )
                         StatItem(
-                            icon = Icons.Rounded.Favorite,
+                            icon = Icons.Rounded.Star,
                             value = manga.popularity.toString(),
                             label = "Popularity"
                         )
@@ -150,7 +190,7 @@ fun MangaCard(
                             icon = Icons.Rounded.DateRange,
                             value = SimpleDateFormat("MMM yyyy", Locale.getDefault())
                                 .format(Date(manga.publishedChapterDate * 1000L)).toString(),
-                            label = "Year"
+                            label = "Published"
                         )
                     }
                 }
@@ -158,6 +198,7 @@ fun MangaCard(
         }
     }
 }
+
 
 @Composable
 fun MangaCoverImage(
