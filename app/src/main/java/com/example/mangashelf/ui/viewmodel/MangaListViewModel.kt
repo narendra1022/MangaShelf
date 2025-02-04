@@ -91,6 +91,8 @@ class MangaListViewModel @Inject constructor(
                     }
                     _mangas.value = sortedMangas
 
+                    updateYearPositions(sortedMangas)
+
                     // Set initial selected year if not set
                     if (_selectedYear.value == null) {
                         _selectedYear.value = sortedMangas.firstOrNull()?.year
@@ -132,9 +134,26 @@ class MangaListViewModel @Inject constructor(
         initializeData()
     }
 
+    private fun updateYearPositions(mangaList: List<MangaWithYear>) {
+        if (currentSort.value == SortType.YEAR_ASC) {
+            val positions = mutableMapOf<Int, Int>()
+            var currentIndex = 0
+
+            mangaList.groupBy { it.year }
+                .forEach { (year, mangasInYear) ->
+                    positions[year] = currentIndex
+                    currentIndex += mangasInYear.size + 1  // +1 for header
+                }
+
+            _yearPositions.value = positions
+        } else {
+            _yearPositions.value = emptyMap()
+        }
+    }
     private fun handleError(message: String) {
         _uiState.update { it.copy(error = message, isLoading = false) }
     }
+
 }
 
 enum class SortType {

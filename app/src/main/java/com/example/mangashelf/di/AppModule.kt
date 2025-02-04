@@ -16,6 +16,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
     @Provides
     @Singleton
     fun provideMangaApi(): MangaApi {
@@ -25,6 +26,7 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(MangaApi::class.java)
+
     }
 
     @Provides

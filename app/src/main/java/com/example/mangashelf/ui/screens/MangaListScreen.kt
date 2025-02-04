@@ -98,6 +98,7 @@ fun MangaListScreen(
                 .padding(paddingValues)
         ) {
             when {
+
                 uiState.isLoading && mangas.isEmpty() -> LoadingScreen()
                 uiState.error != null && mangas.isEmpty() -> {
                     ErrorScreen(

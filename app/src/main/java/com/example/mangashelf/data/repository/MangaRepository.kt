@@ -49,6 +49,7 @@ class MangaRepository @Inject constructor(
                 FetchResult.Error("Server error: ${response.code()}")
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             when {
                 cachedData.isNotEmpty() -> FetchResult.DatabaseOnly
                 e is IOException -> FetchResult.NetworkError

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -37,37 +38,44 @@ fun MangaList(
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
-    // Track programmatic scrolling
+    // Track programmatic scrolling with longer timeout
     var isProgrammaticScroll by remember { mutableStateOf(false) }
 
-    // Handle scrolling to year when selected from tab
-    LaunchedEffect(selectedYear) {
+    // Improved scroll handling
+    LaunchedEffect(selectedYear, currentSort) {
         selectedYear?.let { year ->
             if (currentSort == SortType.YEAR_ASC) {
-                val targetIndex = yearPositions[year] ?: 0
-                if (targetIndex != -1) {
+                yearPositions[year]?.let { targetIndex ->
                     isProgrammaticScroll = true
-                    listState.animateScrollToItem(targetIndex)
-                    delay(300)
-                    isProgrammaticScroll = false
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(targetIndex)
+                        // Add a longer delay to ensure the scroll completes
+                        delay(500)
+                        isProgrammaticScroll = false
+                    }
                 }
             }
         }
     }
 
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .map { index -> mangas.getOrNull(index)?.year }
-            .distinctUntilChanged() // Only update when year changes
-            .filterNotNull()
-            .collect { currentYear ->
-                if (!isProgrammaticScroll && currentSort == SortType.YEAR_ASC) {
-                    onYearChanged(currentYear)
-                }
+    // Improved year tracking
+    LaunchedEffect(listState, currentSort) {
+        if (currentSort == SortType.YEAR_ASC) {
+            snapshotFlow {
+                val firstIndex = listState.firstVisibleItemIndex
+                mangas.getOrNull(firstIndex)?.year
             }
+                .distinctUntilChanged()
+                .filterNotNull()
+                .collect { currentYear ->
+                    if (!isProgrammaticScroll) {
+                        onYearChanged(currentYear)
+                    }
+                }
+        }
     }
-
 
     LazyColumn(
         state = listState,

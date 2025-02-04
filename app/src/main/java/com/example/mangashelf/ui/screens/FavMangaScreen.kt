@@ -38,6 +38,7 @@ fun FavoriteMangaScreen(
     onNavigateBack: () -> Unit,
     viewModel: FavoriteMangaViewModel = hiltViewModel()
 ) {
+
     val favoriteMangas by viewModel.favoriteMangas.collectAsState()
     val isFavorite = remember(favoriteMangas) {
         favoriteMangas.associateBy({ it.id }, { true })
