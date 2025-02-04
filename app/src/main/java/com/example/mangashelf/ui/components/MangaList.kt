@@ -40,10 +40,10 @@ fun MangaList(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Track programmatic scrolling with longer timeout
+    // Tracking programmatic scrolling with longer timeout
     var isProgrammaticScroll by remember { mutableStateOf(false) }
 
-    // Improved scroll handling
+    // scroll handling
     LaunchedEffect(selectedYear, currentSort) {
         selectedYear?.let { year ->
             if (currentSort == SortType.YEAR_ASC) {
@@ -60,7 +60,7 @@ fun MangaList(
         }
     }
 
-    // Improved year tracking
+    // year tracking
     LaunchedEffect(listState, currentSort) {
         if (currentSort == SortType.YEAR_ASC) {
             snapshotFlow {

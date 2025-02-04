@@ -70,7 +70,7 @@ class MangaListViewModel @Inject constructor(
                         )
                     }
 
-                    // Group mangas by year and calculate the first index of each year
+                    // Grouping mangas by year and calculate the first index of each year
                     val yearPositionsMap = mutableMapOf<Int, Int>()
                     var currentIndex = 0
                     mangasWithYear.groupBy { it.year }
