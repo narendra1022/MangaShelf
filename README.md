@@ -19,7 +19,6 @@ You can view the demo video and screenshots of the app [here ( Google Drive ink 
 - **Room Database** for local storage
 - **Retrofit** for API calls
 - **ViewModel + Flow** for state management
-- **Paging 3** for efficient data loading
 - **Hilt** for dependency injection
 - **Coroutines** for background tasks and concurrency
 - **Splash API** for implementing splash screen
